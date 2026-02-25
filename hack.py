@@ -28,7 +28,7 @@ except ImportError:
     GROQ_AVAILABLE = False
     print("⚠️ Groq not installed. Run: pip install groq")
 
-# Black formatting (Optional, wrapped in try-except)
+# Black formatting (Optional)
 try:
     import black
     BLACK_AVAILABLE = True
@@ -42,10 +42,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Bot token & API Keys - It's better to use Environment Variables
+# Bot token & API Keys - Use Environment Variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "YOUR_GROQ_API_KEY_HERE")
-PORT = int(os.environ.get('PORT', '8443'))  # Port for Render
+PORT = int(os.environ.get('PORT', '8443'))
 
 # Store user states and data
 user_states = {}
@@ -71,7 +71,7 @@ class GroqAI:
         
         try:
             completion = self.client.chat.completions.create(
-                model="mixtral-8x7b-32768",  # or "llama2-70b-4096"
+                model="mixtral-8x7b-32768",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
@@ -119,7 +119,7 @@ class GroqAI:
         6. Any sensitive information
         
         Code:
-        {code[:3000]}  # Limit to 3000 chars
+        {code[:3000]}
         
         Return as JSON with categories."""
         
@@ -148,7 +148,6 @@ class AdvancedFileHacker:
         }
         
         try:
-            # Get file info
             file_size = os.path.getsize(file_path)
             file_ext = os.path.splitext(file_path)[1].lower()
             
@@ -159,13 +158,11 @@ class AdvancedFileHacker:
                 'size_kb': round(file_size / 1024, 2)
             }
             
-            # Read file content
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            results['code_content'] = content[:5000]  # First 5000 chars
+            results['code_content'] = content[:5000]
             
-            # Extract sensitive data based on file type
             if file_ext == '.py':
                 AdvancedFileHacker._hack_python(content, results)
             elif file_ext in ['.html', '.htm']:
@@ -179,7 +176,6 @@ class AdvancedFileHacker:
             else:
                 AdvancedFileHacker._hack_generic(content, results)
             
-            # Common patterns for all files
             AdvancedFileHacker._extract_common_patterns(content, results)
             
         except Exception as e:
@@ -189,20 +185,15 @@ class AdvancedFileHacker:
     
     @staticmethod
     def _hack_python(content, results):
-        """Extract from Python files"""
-        # Extract imports
         import_pattern = r'^(?:from|import)\s+(\w+)'
         results['imports'] = re.findall(import_pattern, content, re.MULTILINE)
         
-        # Extract functions
         func_pattern = r'def\s+(\w+)\s*\(([^)]*)\)'
         results['functions'] = re.findall(func_pattern, content)
         
-        # Extract classes
         class_pattern = r'class\s+(\w+)\s*[\(:]'
         results['classes'] = re.findall(class_pattern, content)
         
-        # Extract Django/Flask secrets
         secret_patterns = [
             (r'SECRET_KEY\s*=\s*[\'"]([^\'"]+)[\'"]', 'Django Secret'),
             (r'sqlalchemy\.database_uri.*?[\'"]([^\'"]+)[\'"]', 'DB URI'),
@@ -216,14 +207,12 @@ class AdvancedFileHacker:
             for match in matches:
                 results['sensitive_data'].append(f"{desc}: {match}")
         
-        # AST parsing for advanced extraction
         try:
             tree = ast.parse(content)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Assign):
                     for target in node.targets:
                         if isinstance(target, ast.Name) and 'password' in target.id.lower():
-                            # Python 3.7+ compatibility for string value
                             if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
                                 results['passwords'].append(f"Variable '{target.id}': {node.value.value}")
                 elif isinstance(node, ast.Call):
@@ -237,10 +226,7 @@ class AdvancedFileHacker:
     
     @staticmethod
     def _hack_html(content, results):
-        """Extract from HTML files"""
         soup = BeautifulSoup(content, 'html.parser')
-        
-        # Extract forms
         forms = soup.find_all('form')
         for form in forms:
             form_data = {
@@ -253,16 +239,13 @@ class AdvancedFileHacker:
                     results['passwords'].append(f"Password field: {inp.get('name', 'unnamed')}")
             results['sensitive_data'].append(f"Form: {json.dumps(form_data)}")
         
-        # Extract scripts
         scripts = soup.find_all('script')
         for script in scripts:
             if script.string:
-                # Look for passwords in JS
                 pwd_matches = re.findall(r'password\s*[:=]\s*["\']([^"\']+)["\']', script.string, re.I)
                 for match in pwd_matches:
                     results['passwords'].append(f"JS Password: {match}")
         
-        # Extract meta tags
         metas = soup.find_all('meta')
         for meta in metas:
             if meta.get('name') in ['csrf-token', 'api-key']:
@@ -270,7 +253,6 @@ class AdvancedFileHacker:
     
     @staticmethod
     def _hack_javascript(content, results):
-        """Extract from JavaScript files"""
         patterns = [
             (r'api[_-]?key["\']?\s*[:=]\s*["\']([^"\']+)["\']', 'API Key'),
             (r'token["\']?\s*[:=]\s*["\']([^"\']+)["\']', 'Token'),
@@ -287,7 +269,6 @@ class AdvancedFileHacker:
     
     @staticmethod
     def _hack_php(content, results):
-        """Extract from PHP files"""
         patterns = [
             (r'\$password\s*=\s*["\']([^"\']+)["\']', 'PHP Password'),
             (r'\$db_password\s*=\s*["\']([^"\']+)["\']', 'DB Password'),
@@ -303,7 +284,6 @@ class AdvancedFileHacker:
     
     @staticmethod
     def _hack_json(content, results):
-        """Extract from JSON files"""
         try:
             data = json.loads(content)
             
@@ -325,21 +305,16 @@ class AdvancedFileHacker:
     
     @staticmethod
     def _hack_generic(content, results):
-        """Generic extraction for any file"""
         pass
     
     @staticmethod
     def _extract_common_patterns(content, results):
-        """Extract common patterns from any file"""
-        # Email addresses
         emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', content)
         results['emails'] = list(set(emails))[:20]
         
-        # URLs
         urls = re.findall(r'https?://[^\s"\']+', content)
         results['urls'] = list(set(urls))[:20]
         
-        # API Keys (common patterns)
         api_patterns = [
             (r'AIza[0-9A-Za-z\-_]{35}', 'Google API Key'),
             (r'sk-[0-9a-zA-Z]{48}', 'OpenAI API Key'),
@@ -353,7 +328,6 @@ class AdvancedFileHacker:
             for match in matches:
                 results['api_keys'].append(f"{desc}: {match}")
         
-        # Passwords from text
         pwd_patterns = [
             (r'password[=:]\s*(\S+)', 'Password'),
             (r'pass[=:]\s*(\S+)', 'Pass'),
@@ -367,27 +341,19 @@ class AdvancedFileHacker:
                     results['passwords'].append(f"{desc}: {match}")
 
 class FileGenerator:
-    """Generate files from code descriptions"""
-    
     @staticmethod
     def generate_file(code, filename):
-        """Generate a file with given code"""
         try:
-            # Create directory if not exists
             os.makedirs('generated_files', exist_ok=True)
-            
-            # Clean filename
             filename = re.sub(r'[^\w\-_\.]', '', filename)
             filepath = os.path.join('generated_files', filename)
             
-            # Format code if Python
             if filename.endswith('.py') and BLACK_AVAILABLE:
                 try:
                     code = black.format_str(code, mode=black.Mode())
                 except:
                     pass
             
-            # Write file
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(code)
             
@@ -397,7 +363,6 @@ class FileGenerator:
     
     @staticmethod
     def cleanup_file(filepath):
-        """Remove generated file"""
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)
@@ -468,7 +433,6 @@ class AdvancedPasswordExtractor:
         
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        # Password input fields
         password_inputs = soup.find_all('input', {'type': 'password'})
         for inp in password_inputs:
             field_info = {
@@ -481,7 +445,6 @@ class AdvancedPasswordExtractor:
             }
             results['password_fields'].append(field_info)
         
-        # Hardcoded passwords
         password_patterns = [
             (r'password[=:]\s*[\'"]([^\'"]+)[\'"]', 'Password attribute'),
             (r'pwd[=:]\s*[\'"]([^\'"]+)[\'"]', 'pwd attribute'),
@@ -499,7 +462,6 @@ class AdvancedPasswordExtractor:
                         'type': desc
                     })
         
-        # Hashes
         hash_patterns = [
             (r'[a-f0-9]{32}', 'MD5'),
             (r'[a-f0-9]{40}', 'SHA1'),
@@ -535,7 +497,8 @@ class AdvancedPasswordExtractor:
         if results['hashes']:
             output.append("\n🔐 *ক্রিপ্টোগ্রাফিক হ্যাশ:*")
             for i, item in enumerate(results['hashes'][:10], 1):
-                output.append(f"{i. `{item['hash']}`  *[ {item['type']} ]*")
+                # FIXED: Changed {i. to {i}. below
+                output.append(f"{i}. `{item['hash']}`  *[ {item['type']} ]*")
         
         if not any(results.values()):
             output.append("❌ কোনো পাসওয়ার্ড পাওয়া যায়নি।")
@@ -547,7 +510,6 @@ groq_ai = GroqAI(GROQ_API_KEY)
 
 # Bot command handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send welcome message with inline keyboard"""
     keyboard = [
         [InlineKeyboardButton("🤖 Groq AI Chat", callback_data='groq')],
         [InlineKeyboardButton("🔓 File Hacker", callback_data='hack')],
@@ -596,7 +558,6 @@ _শুধুমাত্র শিক্ষামূলক উদ্দেশ�
     )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle button clicks"""
     query = update.callback_query
     await query.answer()
     
@@ -664,17 +625,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text messages"""
     user_id = update.effective_user.id
     text = update.message.text
     
-    # Groq AI Chat
     if user_states.get(user_id) == 'groq_chat':
         await update.message.reply_text("🤔 Groq AI ভাবছে...")
-        
         response = groq_ai.ask(text)
         
-        # Split long messages
         if len(response) > 4000:
             parts = [response[i:i+4000] for i in range(0, len(response), 4000)]
             for i, part in enumerate(parts, 1):
@@ -688,7 +645,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
     
-    # Website Downloader
     elif user_states.get(user_id) == 'waiting_website':
         await update.message.reply_text("⏳ ওয়েবসাইট ডাউনলোড হচ্ছে...")
         
@@ -708,11 +664,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         user_states.pop(user_id, None)
     
-    # File Generator
     elif user_states.get(user_id) == 'waiting_generate':
         await update.message.reply_text("📝 ফাইল জেনারেট করা হচ্ছে...")
         
-        # Parse filename and description
         parts = text.split(' ', 1)
         if len(parts) < 2:
             await update.message.reply_text("❌ ফরম্যাট: [ফাইলের নাম] [বিবরণ]\nউদাহরণ: calculator.py একটি ক্যালকুলেটর বানাও")
@@ -721,14 +675,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         filename = parts[0]
         description = parts[1]
         
-        # Generate code using Groq
         code = groq_ai.generate_code(description, filename)
         
         if "❌" in code:
             await update.message.reply_text(code)
             return
         
-        # Create file
         filepath = FileGenerator.generate_file(code, filename)
         
         if filepath:
@@ -744,19 +696,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         user_states.pop(user_id, None)
     
-    # Password Extractor from text
     elif user_states.get(user_id) == 'waiting_extract':
         await update.message.reply_text("🔍 ডাটা এক্সট্রাক্ট করা হচ্ছে...")
         
-        # Use Groq for smart extraction
         groq_results = groq_ai.extract_info_from_code(text)
         
-        # Use local extractor as backup
         extractor = AdvancedPasswordExtractor()
         local_results = extractor.extract_all_passwords(text)
         local_formatted = extractor.format_advanced_results(local_results)
         
-        # Combine results
         response = f"{local_formatted}\n\n🤖 *Groq AI Analysis:*\n{groq_results}"
         
         if len(response) > 4000:
@@ -772,7 +720,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states.pop(user_id, None)
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle document uploads"""
     user_id = update.effective_user.id
     state = user_states.get(user_id)
     
@@ -783,22 +730,17 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = await update.message.document.get_file()
     file_name = update.message.document.file_name
     
-    # Download file
     file_bytes = await file.download_as_bytearray()
     
-    # File Hacker
     if state == 'waiting_file_hack':
         await update.message.reply_text(f"🔓 ফাইল হ্যাক করা হচ্ছে: {file_name}")
         
-        # Save temp file
         temp_path = f"temp_{int(time.time())}_{file_name}"
         with open(temp_path, 'wb') as f:
             f.write(file_bytes)
         
-        # Hack the file
         results = AdvancedFileHacker.hack_file(temp_path)
         
-        # Format results
         response = []
         response.append(f"📁 *ফাইল ইনফো:*")
         response.append(f"নাম: {results['file_info'].get('name', 'N/A')}")
@@ -853,7 +795,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not any([results.get('passwords'), results.get('api_keys'), results.get('sensitive_data')]):
             response.append("\n❌ কোনো সেনসিটিভ ডাটা পাওয়া যায়নি।")
         
-        # Send code content
         if results.get('code_content'):
             code_file = f"code_{int(time.time())}.txt"
             with open(code_file, 'w', encoding='utf-8') as f:
@@ -868,7 +809,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             os.remove(code_file)
         
-        # Send results
         full_response = "\n".join(response)
         if len(full_response) > 4000:
             parts = [full_response[i:i+4000] for i in range(0, len(full_response), 4000)]
@@ -880,20 +820,16 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(full_response, parse_mode='Markdown')
         
-        # Cleanup
         os.remove(temp_path)
         user_states.pop(user_id, None)
     
-    # Password Extractor from file
     elif state == 'waiting_extract':
         await update.message.reply_text(f"🔍 ফাইল থেকে ডাটা এক্সট্রাক্ট করা হচ্ছে...")
         
         content = file_bytes.decode('utf-8', errors='ignore')
         
-        # Use Groq for smart extraction
         groq_results = groq_ai.extract_info_from_code(content)
         
-        # Use local extractor
         extractor = AdvancedPasswordExtractor()
         local_results = extractor.extract_all_passwords(content)
         local_formatted = extractor.format_advanced_results(local_results)
@@ -913,7 +849,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states.pop(user_id, None)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Help command"""
     help_text = """
 *🚀 সুপার অ্যাডভান্সড বট - হেল্প*
 
@@ -948,7 +883,6 @@ _শুধুমাত্র শিক্ষামূলক উদ্দেশ�
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle errors"""
     logger.error(f"Update {update} caused error {context.error}")
     try:
         if update and update.effective_message:
@@ -960,8 +894,6 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 def main():
-    """Main function to run the bot"""
-    # Check requirements
     if not GROQ_AVAILABLE:
         print("⚠️ WARNING: Groq not installed. Run: pip install groq")
 
@@ -969,10 +901,8 @@ def main():
         print("❌ ERROR: Please set your BOT_TOKEN in Environment Variables!")
         return
 
-    # Create application
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CallbackQueryHandler(button_handler))
@@ -985,12 +915,11 @@ def main():
     print("="*50)
     
     # Render Web Service Setup
-    # Render sets the PORT environment variable. We use webhook for web service.
     if 'RENDER' in os.environ or 'PORT' in os.environ:
         print("🌐 Web Service Mode (Render)")
         RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
         if RENDER_EXTERNAL_URL:
-            print(f"🔗 Webhook URL: {RENDER_EXTERNAL_URL}")
+            print(f"🔗 Webhook URL: {RENDER_EXTERNAL_URL}/{BOT_TOKEN}")
             application.run_webhook(
                 listen="0.0.0.0",
                 port=PORT,
