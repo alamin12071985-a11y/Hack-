@@ -894,15 +894,24 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 def main():
+    # ১. Groq চেক
     if not GROQ_AVAILABLE:
         print("⚠️ WARNING: Groq not installed. Run: pip install groq")
 
-    if BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        print("❌ ERROR: Please set your BOT_TOKEN in Environment Variables!")
-        return
+    # ২. BOT_TOKEN চেক এবং সঠিক Error Message
+    if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
+        print("❌ ERROR: BOT_TOKEN is missing or not set in Environment Variables!")
+        print("➡️ Please add BOT_TOKEN in Render Dashboard -> Environment.")
+        sys.exit(1) # প্রোগ্রাম এখানে থেমে যাবে এবং স্পষ্ট কারণ দেখাবে
 
-    application = Application.builder().token(BOT_TOKEN).build()
+    # ৩. Application তৈরি
+    try:
+        application = Application.builder().token(BOT_TOKEN).build()
+    except Exception as e:
+        print(f"❌ Failed to initialize bot: {e}")
+        sys.exit(1)
 
+    # ৪. Handlers যোগ করা
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CallbackQueryHandler(button_handler))
@@ -914,23 +923,28 @@ def main():
     print("🚀 সুপার অ্যাডভান্সড বট চালু হচ্ছে...")
     print("="*50)
     
-    # Render Web Service Setup
-    if 'RENDER' in os.environ or 'PORT' in os.environ:
-        print("🌐 Web Service Mode (Render)")
-        RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
-        if RENDER_EXTERNAL_URL:
-            print(f"🔗 Webhook URL: {RENDER_EXTERNAL_URL}/{BOT_TOKEN}")
+    # ৫. Render Web Service Setup (Webhook)
+    # Render এ সবসময় WEBHOOK ব্যবহার করতে হবে, Polling কাজ করবে না।
+    PORT = int(os.environ.get('PORT', 8443))
+    RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL')
+    
+    if RENDER_EXTERNAL_URL:
+        print(f"🌐 Web Service Mode (Render)")
+        print(f"🔗 Setting Webhook to: {RENDER_EXTERNAL_URL}/{BOT_TOKEN}")
+        try:
             application.run_webhook(
                 listen="0.0.0.0",
                 port=PORT,
                 url_path=BOT_TOKEN,
                 webhook_url=f"{RENDER_EXTERNAL_URL}/{BOT_TOKEN}"
             )
-        else:
-            print("⚠️ RENDER_EXTERNAL_URL not found, running polling...")
-            application.run_polling(allowed_updates=Update.ALL_TYPES)
+        except Exception as e:
+            print(f"❌ Webhook setup failed: {e}")
+            sys.exit(1)
     else:
-        print("💻 Local Polling Mode")
+        # যদি Render External URL না পায় (Local রানের জন্য)
+        print("💻 Local Polling Mode (No RENDER_EXTERNAL_URL found)")
+        print("⚠️ Warning: If running on Render, ensure RENDER_EXTERNAL_URL env var is set.")
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
